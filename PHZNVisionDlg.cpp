@@ -61,19 +61,19 @@ END_MESSAGE_MAP()
 CPHZNVisionDlg::CPHZNVisionDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CPHZNVisionDlg::IDD, pParent)
 	, time(0)
-	, exp(5000)
+	, exp(45000)
 	, rx(0)
 	, ry(0)
 	, time1(0)
-	, exp1(5000)
+	, exp1(45000)
 	, rx1(0)
 	, ry1(0)
-	, rc(0.0420168067227)
-	, rc1(0.0459770114943)
-	, delay(1000)
-	, delay1(1000)
-	, thres(150)
-	, thres1(150)
+	, rc(0.0048)
+	, rc1(0.0048)
+	, delay(0)
+	, delay1(0)
+	, thres(255)
+	, thres1(255)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -690,12 +690,12 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 	HTuple hv_Row, hv_Column, hv_MetrologyHandle1, hv_Index, hv_Parameter1;
 	clock_t st, et;
 	Mat roi;
-	int s, rowmax, colmax, rowindex, colindex;
+	//int s, rowmax, colmax, rowindex, colindex;
 	vector<Vec3f> pcircles;
 	try
 	{
-		//InfoFramegrabber("HMV3rdParty", "device", &hv_Information, &hv_Values);
-		OpenFramegrabber("HMV3rdParty", 0, 0, 0, 0, 0, 0, "progressive", -1, "default", -1, "false", "default", "DahuaTechnology:6D0080EPAK00008", 0, -1, &hv_AcqHandle);
+		InfoFramegrabber("HMV3rdParty", "device", &hv_Information, &hv_Values);
+		OpenFramegrabber("HMV3rdParty", 0, 0, 0, 0, 0, 0, "progressive", -1, "default", -1, "false", "default", hv_Values[0].S(), 0, -1, &hv_AcqHandle);
 	}
 	catch (...)
 	{
@@ -708,7 +708,7 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 	{
 		SetFramegrabberParam(hv_AcqHandle, "TriggerSelector", "FrameStart");
 		SetFramegrabberParam(hv_AcqHandle, "TriggerMode", "On");
-		SetFramegrabberParam(hv_AcqHandle, "TriggerSource", "Line1");
+		SetFramegrabberParam(hv_AcqHandle, "TriggerSource", "Line2");
 		SetFramegrabberParam(hv_AcqHandle, "grab_timeout", -1);
 	}
 	else
@@ -814,17 +814,19 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 		ReduceDomain(pDlg->ho_Image, pDlg->ho_Rectangle, &pDlg->ho_ImageReduced);
 		//CropDomain(pDlg->ho_ImageReduced, &pDlg->ho_ImageReduced);
 		GaussFilter(pDlg->ho_ImageReduced, &pDlg->ho_ImageReduced, 3);
-		Threshold(pDlg->ho_ImageReduced, &pDlg->ho_Region, 255, 255);
-		CountObj(pDlg->ho_Region, &hv_Number);
-		cout << hv_Number.I() << endl;
-		if (hv_Number.I() == 0)
+		//BinaryThreshold(pDlg->ho_ImageReduced, &pDlg->ho_Region, "max_separability", "light", &hv_Usedthreshold);
+		Threshold(pDlg->ho_ImageReduced, &pDlg->ho_Region, pDlg->thres, 255);
+		//CountObj(pDlg->ho_Region, &hv_Number);
+		//cout << hv_Number.I() << endl;
+		AreaCenter(pDlg->ho_Region, &hv_Area, &hv_Row, &hv_Column);
+		if (hv_Row.D() == 0 && hv_Column.D()==0)
 		{
 			pDlg->rx = 100;
 			pDlg->ry = 100;
 		}
 		else
 		{
-			AreaCenter(pDlg->ho_Region, &hv_Area, &hv_Row, &hv_Column);
+			//AreaCenter(pDlg->ho_Region, &hv_Area, &hv_Row, &hv_Column);
 			pDlg->rx = round(hv_Column.D()*pDlg->rc * 1000) / 1000;
 			pDlg->ry = round(hv_Row.D()*pDlg->rc * 1000) / 1000;
 			DispCircle(pDlg->hv_WindowID, hv_Row, hv_Column, HTuple(0.75 / pDlg->rc));
@@ -991,16 +993,16 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 {
 	// Local control variables
 	HTuple end_val36, step_val36, hv_Classes, hv_lightdark, hv_Width, hv_Height;
-	HTuple hv_Information, hv_Values, hv_Number, hv_I, hv_Radius, hv_StartPhi, hv_EndPhi, hv_PointOrder, hv_Area;
+	HTuple hv_Information, hv_Values, hv_Number, hv_I, hv_Radius, hv_StartPhi, hv_EndPhi, hv_PointOrder, hv_Area, hv_Row, hv_Column;
 	clock_t st, et;
 	Mat roi;
-	int s, rowmax, colmax, rowindex, colindex;
+	//int s, rowmax, colmax, rowindex, colindex;
 	vector<Vec3f> pcircles;
 	//OpenFramegrabber("HMV3rdParty", 0, 0, 0, 0, 0, 0, "progressive", -1, "default", -1, "false", "default", "DahuaTechnology:5M03DF0PAK00003", 0, -1, &hv_AcqHandle1);
 	try
 	{
-		//InfoFramegrabber("HMV3rdParty", "device", &hv_Information, &hv_Values);
-		OpenFramegrabber("HMV3rdParty", 0, 0, 0, 0, 0, 0, "progressive", -1, "default", -1, "false", "default", "DahuaTechnology:5M03DF0PAK00003", 0, -1, &hv_AcqHandle1);
+		InfoFramegrabber("HMV3rdParty", "device", &hv_Information, &hv_Values);
+		OpenFramegrabber("HMV3rdParty", 0, 0, 0, 0, 0, 0, "progressive", -1, "default", -1, "false", "default", hv_Values[1].S(), 0, -1, &hv_AcqHandle1);
 	}
 	catch (...)
 	{
@@ -1013,7 +1015,7 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 	{
 		SetFramegrabberParam(hv_AcqHandle1, "TriggerSelector", "FrameStart");
 		SetFramegrabberParam(hv_AcqHandle1, "TriggerMode", "On");
-		SetFramegrabberParam(hv_AcqHandle1, "TriggerSource", "Line1");
+		SetFramegrabberParam(hv_AcqHandle1, "TriggerSource", "Line2");
 		SetFramegrabberParam(hv_AcqHandle1, "grab_timeout", -1);
 	}
 	else
@@ -1069,45 +1071,59 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		GenRectangle1(&pDlg->ho_Rectangle1, hv_Row21, hv_Column21, hv_Row22, hv_Column22);
 		DispRectangle1(pDlg->hv_WindowID1, hv_Row21, hv_Column21, hv_Row22, hv_Column22);
 		ReduceDomain(pDlg->ho_Image1, pDlg->ho_Rectangle1, &pDlg->ho_ImageReduced1);
-		CropDomain(pDlg->ho_ImageReduced1, &pDlg->ho_ImageReduced1);
+		//CropDomain(pDlg->ho_ImageReduced1, &pDlg->ho_ImageReduced1);
 		GaussFilter(pDlg->ho_ImageReduced1, &pDlg->ho_ImageReduced1, 3);
+		Threshold(pDlg->ho_ImageReduced1, &pDlg->ho_Region1, pDlg->thres1, 255);
+		AreaCenter(pDlg->ho_Region1, &hv_Area, &hv_Row, &hv_Column);
+		if (hv_Row.D() == 0 && hv_Column.D() == 0)
+		{
+			pDlg->rx1 = 100;
+			pDlg->ry1 = 100;
+		}
+		else
+		{
+			//AreaCenter(pDlg->ho_Region, &hv_Area, &hv_Row, &hv_Column);
+			pDlg->rx1 = round(hv_Column.D()*pDlg->rc1 * 1000) / 1000;
+			pDlg->ry1 = round(hv_Row.D()*pDlg->rc1 * 1000) / 1000;
+			DispCircle(pDlg->hv_WindowID1, hv_Row, hv_Column, HTuple(0.75 / pDlg->rc1));
+		}
 		//threshold(pDlg->ho_ImageReduced1, &pDlg->ho_ImageReduced1, 128, 255);
-		roi = HObject2Mat1(pDlg->ho_ImageReduced1);
-		threshold(roi, roi, pDlg->thres1, 255, CV_THRESH_BINARY);
-		rowmax = 0; colmax = 0;
-		for (int i = 0; i < roi.rows; i++)
-		{
-			s = 0;
-			uchar* pdata = roi.ptr<uchar>(i);
-			for (int j = 0; j < roi.cols; j++)
-			{
-				s += *pdata++;
-			}
-			if (s >= rowmax)
-			{
-				rowmax = s;
-				rowindex = i;
-			}
-			/*else
-				break;*/
-		}
-		roi = roi.t();
-		for (int i = 0; i < roi.rows; i++)
-		{
-			s = 0;
-			uchar* pdata = roi.ptr<uchar>(i);
-			for (int j = 0; j < roi.cols; j++)
-			{
-				s += *pdata++;
-			}
-			if (s >= colmax)
-			{
-				colmax = s;
-				colindex = i;
-			}
-			/*else
-				break;*/
-		}
+		//roi = HObject2Mat1(pDlg->ho_ImageReduced1);
+		//threshold(roi, roi, pDlg->thres1, 255, CV_THRESH_BINARY);
+		//rowmax = 0; colmax = 0;
+		//for (int i = 0; i < roi.rows; i++)
+		//{
+		//	s = 0;
+		//	uchar* pdata = roi.ptr<uchar>(i);
+		//	for (int j = 0; j < roi.cols; j++)
+		//	{
+		//		s += *pdata++;
+		//	}
+		//	if (s >= rowmax)
+		//	{
+		//		rowmax = s;
+		//		rowindex = i;
+		//	}
+		//	/*else
+		//		break;*/
+		//}
+		//roi = roi.t();
+		//for (int i = 0; i < roi.rows; i++)
+		//{
+		//	s = 0;
+		//	uchar* pdata = roi.ptr<uchar>(i);
+		//	for (int j = 0; j < roi.cols; j++)
+		//	{
+		//		s += *pdata++;
+		//	}
+		//	if (s >= colmax)
+		//	{
+		//		colmax = s;
+		//		colindex = i;
+		//	}
+		//	/*else
+		//		break;*/
+		//}
 		//Roberts(pDlg->ho_ImageReduced1, &pDlg->ho_ImageReduced1, "gradient_sum");
 		////Autorchold(pDlg->ho_ImageReduced1, &pDlg->ho_ImageReduced1, 15);
 		//Binaryrchold(pDlg->ho_ImageReduced1, &pDlg->ho_ImageReduced1, "smooth_histo", "dark", &hv_Usedrchold1);
@@ -1128,7 +1144,7 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		//	//cout << pcircles[i][2] << endl;
 		//	DispCircle(pDlg->hv_WindowID1, HTuple(pcircles[i][1]), HTuple(pcircles[i][0]), HTuple(pcircles[i][2]));
 		//}
-		DispCircle(pDlg->hv_WindowID1, HTuple(hv_Row21.D() + rowindex), HTuple(hv_Column21.D() + colindex), HTuple(0.75 / pDlg->rc1));
+		//DispCircle(pDlg->hv_WindowID1, HTuple(hv_Row21.D() + rowindex), HTuple(hv_Column21.D() + colindex), HTuple(0.75 / pDlg->rc1));
 		//if (pcircles.size() != 0)
 		//{
 		//	//pDlg->rx1 = round((pDlg->x2 + (pcircles[pcircles.size() - 1][0] - hv_Width.I() / 2.0)*pDlg->rc1) * 1000) / 1000;
@@ -1146,7 +1162,7 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		//	pDlg->ry1 = 100;
 		//}
 		//pcircles.clear();
-		if (colindex == roi.rows - 1)
+		/*if (colindex == roi.rows - 1)
 		{
 			pDlg->rx1 = 100;
 			pDlg->ry1 = 100;
@@ -1155,7 +1171,7 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		{
 			pDlg->rx1 = round((hv_Column21.D() + colindex)*pDlg->rc1 * 1000) / 1000;
 			pDlg->ry1 = round((hv_Row21.D() + rowindex)*pDlg->rc1 * 1000) / 1000;
-		}
+		}*/
 		et = clock();
 		//cout << "rx1:" << pDlg->rx1 << endl;
 		//cout << "ry1:" << pDlg->ry1 << endl;
