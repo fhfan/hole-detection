@@ -109,7 +109,9 @@ public:
 	void changeControlSize(CWnd* pWnd, int x, int y);*/
 	CButton repaint;
 	CButton repaint1;
-	double thres;
-	double thres1;
+	//double thres;
+	//double thres1;
+	int triggernum;
+	int triggernum1;
 };
 
