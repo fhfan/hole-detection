@@ -61,19 +61,21 @@ END_MESSAGE_MAP()
 CPHZNVisionDlg::CPHZNVisionDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CPHZNVisionDlg::IDD, pParent)
 	, time(0)
-	, exp(45000)
+	, exp(15000)
 	, rx(0)
 	, ry(0)
 	, time1(0)
-	, exp1(45000)
+	, exp1(15000)
 	, rx1(0)
 	, ry1(0)
 	, rc(0.0048)
 	, rc1(0.0048)
 	, delay(0)
 	, delay1(0)
-	, thres(255)
-	, thres1(255)
+	//, thres(255)
+	//, thres1(255)
+	, triggernum(0)
+	, triggernum1(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -99,8 +101,10 @@ void CPHZNVisionDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT3, delay1);
 	DDX_Control(pDX, IDC_CHECK5, repaint);
 	DDX_Control(pDX, IDC_CHECK6, repaint1);
-	DDX_Text(pDX, IDC_EDIT4, thres);
-	DDX_Text(pDX, IDC_EDIT5, thres1);
+	//DDX_Text(pDX, IDC_EDIT4, thres);
+	//DDX_Text(pDX, IDC_EDIT5, thres1);
+	DDX_Text(pDX, IDC_EDIT4, triggernum);
+	DDX_Text(pDX, IDC_EDIT5, triggernum1);
 }
 
 BEGIN_MESSAGE_MAP(CPHZNVisionDlg, CDialogEx)
@@ -153,7 +157,7 @@ BOOL CPHZNVisionDlg::OnInitDialog()
 	//LoadImageCorrectionFile();
 	//CRect rect;
 	//GetClientRect(&rect);     //取客户区大小  
-	InitConsoleWindow();
+	//InitConsoleWindow();
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -649,7 +653,8 @@ double DistancePP(HalconCpp::HTuple hv_CameraParameters, HalconCpp::HTuple hv_Ca
 bool flag = false, flag1 = false, flag2 = false;
 bool judg1 = true, judg2 = true;
 bool judg11 = true, judg21 = true;
-int thread1 = 0, thread2 = 0;
+int thread1, thread2;
+int trignum = 0, trignum1 = 0;
 HTuple hv_Row11, hv_Column11, hv_Phi11, hv_Length11, hv_Length211, hv_Usedthreshold, hv_Usedthreshold1;
 HTuple hv_Row12, hv_Column12, hv_Phi12, hv_Length12, hv_Length212;
 HTuple hv_Row21, hv_Column21, hv_Phi21, hv_Length21, hv_Length221;
@@ -687,7 +692,8 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 	// Local control variables
 	HTuple end_val36, step_val36, hv_Classes, hv_lightdark, hv_Width, hv_Height;
 	HTuple hv_Information, hv_Values, hv_Number, hv_I, hv_Radius, hv_StartPhi, hv_EndPhi, hv_PointOrder, hv_Area;
-	HTuple hv_Row, hv_Column, hv_MetrologyHandle1, hv_Index, hv_Parameter1;
+	HTuple hv_Row, hv_Column, hv_MetrologyHandle1, hv_Index, hv_Parameter1, hv_Mean, hv_Deviation;
+	thread1 = 0;
 	clock_t st, et;
 	Mat roi;
 	//int s, rowmax, colmax, rowindex, colindex;
@@ -708,8 +714,8 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 	{
 		SetFramegrabberParam(hv_AcqHandle, "TriggerSelector", "FrameStart");
 		SetFramegrabberParam(hv_AcqHandle, "TriggerMode", "On");
-		SetFramegrabberParam(hv_AcqHandle, "TriggerSource", "Line2");
-		SetFramegrabberParam(hv_AcqHandle, "grab_timeout", -1);
+		SetFramegrabberParam(hv_AcqHandle, "TriggerSource", "Line1");
+		SetFramegrabberParam(hv_AcqHandle, "grab_timeout", 1000);
 	}
 	else
 		SetFramegrabberParam(hv_AcqHandle, "TriggerMode", "Off");
@@ -738,7 +744,17 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 	while (pDlg->StartImageState)
 	{
 		//GrabImage(&pDlg->ho_Image, hv_AcqHandle);
-		GrabImageAsync(&pDlg->ho_Image, hv_AcqHandle, -1);
+		try
+		{
+			GrabImageAsync(&pDlg->ho_Image, hv_AcqHandle, -1);
+		}
+		catch (...)
+		{
+			if (pDlg->StartImageState == false)
+				break;
+			else
+				continue;
+		}
 		st = clock();
 		//thread1 = 0;
 		DispObj(pDlg->ho_Image, pDlg->hv_WindowID);
@@ -814,23 +830,38 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 		ReduceDomain(pDlg->ho_Image, pDlg->ho_Rectangle, &pDlg->ho_ImageReduced);
 		//CropDomain(pDlg->ho_ImageReduced, &pDlg->ho_ImageReduced);
 		GaussFilter(pDlg->ho_ImageReduced, &pDlg->ho_ImageReduced, 3);
-		//BinaryThreshold(pDlg->ho_ImageReduced, &pDlg->ho_Region, "max_separability", "light", &hv_Usedthreshold);
-		Threshold(pDlg->ho_ImageReduced, &pDlg->ho_Region, pDlg->thres, 255);
-		//CountObj(pDlg->ho_Region, &hv_Number);
-		//cout << hv_Number.I() << endl;
-		AreaCenter(pDlg->ho_Region, &hv_Area, &hv_Row, &hv_Column);
-		if (hv_Row.D() == 0 && hv_Column.D()==0)
+		Intensity(pDlg->ho_Rectangle, pDlg->ho_ImageReduced, &hv_Mean, &hv_Deviation);
+		if (hv_Deviation.D()<10)
 		{
 			pDlg->rx = 100;
 			pDlg->ry = 100;
 		}
 		else
 		{
-			//AreaCenter(pDlg->ho_Region, &hv_Area, &hv_Row, &hv_Column);
+			BinaryThreshold(pDlg->ho_ImageReduced, &pDlg->ho_Region, "max_separability", "light", &hv_Usedthreshold);
+			AreaCenter(pDlg->ho_Region, &hv_Area, &hv_Row, &hv_Column);
 			pDlg->rx = round(hv_Column.D()*pDlg->rc * 1000) / 1000;
 			pDlg->ry = round(hv_Row.D()*pDlg->rc * 1000) / 1000;
 			DispCircle(pDlg->hv_WindowID, hv_Row, hv_Column, HTuple(0.75 / pDlg->rc));
 		}
+		//cout << hv_Deviation.D() << endl;
+		//BinaryThreshold(pDlg->ho_ImageReduced, &pDlg->ho_Region, "max_separability", "light", &hv_Usedthreshold);
+		//Threshold(pDlg->ho_ImageReduced, &pDlg->ho_Region, pDlg->thres, 255);
+		//CountObj(pDlg->ho_Region, &hv_Number);
+		//cout << hv_Number.I() << endl;
+		//AreaCenter(pDlg->ho_Region, &hv_Area, &hv_Row, &hv_Column);
+		//if (hv_Row.D() == 0 && hv_Column.D()==0)
+		//{
+		//	pDlg->rx = 100;
+		//	pDlg->ry = 100;
+		//}
+		//else
+		//{
+		//	//AreaCenter(pDlg->ho_Region, &hv_Area, &hv_Row, &hv_Column);
+		//	pDlg->rx = round(hv_Column.D()*pDlg->rc * 1000) / 1000;
+		//	pDlg->ry = round(hv_Row.D()*pDlg->rc * 1000) / 1000;
+		//	DispCircle(pDlg->hv_WindowID, hv_Row, hv_Column, HTuple(0.75 / pDlg->rc));
+		//}
 		
 		//AutoThreshold(pDlg->ho_ImageReduced, &pDlg->ho_Region, 15);
 		//BinaryThreshold(pDlg->ho_ImageReduced, &pDlg->ho_Region, "smooth_histo", "light", &hv_Usedthreshold);
@@ -980,6 +1011,11 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 		thread1 = 1;
 		//}
 		pDlg->time = et - st;
+		if (pDlg->trigger.GetCheck() == 1)
+		{
+			trignum++;
+			pDlg->triggernum = trignum;
+		}
 		pDlg->SendMessage(WM_UPDATEDATA, FALSE);
 		if (pDlg->trigger.GetCheck() != 1)
 			Sleep(pDlg->delay);
@@ -994,6 +1030,8 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 	// Local control variables
 	HTuple end_val36, step_val36, hv_Classes, hv_lightdark, hv_Width, hv_Height;
 	HTuple hv_Information, hv_Values, hv_Number, hv_I, hv_Radius, hv_StartPhi, hv_EndPhi, hv_PointOrder, hv_Area, hv_Row, hv_Column;
+	HTuple hv_Mean, hv_Deviation;
+	thread2 = 0;
 	clock_t st, et;
 	Mat roi;
 	//int s, rowmax, colmax, rowindex, colindex;
@@ -1015,8 +1053,8 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 	{
 		SetFramegrabberParam(hv_AcqHandle1, "TriggerSelector", "FrameStart");
 		SetFramegrabberParam(hv_AcqHandle1, "TriggerMode", "On");
-		SetFramegrabberParam(hv_AcqHandle1, "TriggerSource", "Line2");
-		SetFramegrabberParam(hv_AcqHandle1, "grab_timeout", -1);
+		SetFramegrabberParam(hv_AcqHandle1, "TriggerSource", "Line1");
+		SetFramegrabberParam(hv_AcqHandle1, "grab_timeout", 1000);
 	}
 	else
 		SetFramegrabberParam(hv_AcqHandle1, "TriggerMode", "Off");
@@ -1045,7 +1083,17 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 	while (pDlg->StartImageState1)
 	{
 		//GrabImage(&pDlg->ho_Image1, hv_AcqHandle1);
-		GrabImageAsync(&pDlg->ho_Image1, hv_AcqHandle1, -1);
+		try
+		{
+			GrabImageAsync(&pDlg->ho_Image1, hv_AcqHandle1, -1);
+		}
+		catch (...)
+		{
+			if (pDlg->StartImageState1 == false)
+				break;
+			else
+				continue;
+		}
 		st = clock();
 		//thread2 = 0;
 		DispObj(pDlg->ho_Image1, pDlg->hv_WindowID1);
@@ -1073,20 +1121,34 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		ReduceDomain(pDlg->ho_Image1, pDlg->ho_Rectangle1, &pDlg->ho_ImageReduced1);
 		//CropDomain(pDlg->ho_ImageReduced1, &pDlg->ho_ImageReduced1);
 		GaussFilter(pDlg->ho_ImageReduced1, &pDlg->ho_ImageReduced1, 3);
-		Threshold(pDlg->ho_ImageReduced1, &pDlg->ho_Region1, pDlg->thres1, 255);
-		AreaCenter(pDlg->ho_Region1, &hv_Area, &hv_Row, &hv_Column);
-		if (hv_Row.D() == 0 && hv_Column.D() == 0)
+		Intensity(pDlg->ho_Rectangle1, pDlg->ho_ImageReduced1, &hv_Mean, &hv_Deviation);
+		if (hv_Deviation.D()<10)
 		{
 			pDlg->rx1 = 100;
 			pDlg->ry1 = 100;
 		}
 		else
 		{
-			//AreaCenter(pDlg->ho_Region, &hv_Area, &hv_Row, &hv_Column);
+			BinaryThreshold(pDlg->ho_ImageReduced1, &pDlg->ho_Region1, "max_separability", "light", &hv_Usedthreshold1);
+			AreaCenter(pDlg->ho_Region1, &hv_Area, &hv_Row, &hv_Column);
 			pDlg->rx1 = round(hv_Column.D()*pDlg->rc1 * 1000) / 1000;
 			pDlg->ry1 = round(hv_Row.D()*pDlg->rc1 * 1000) / 1000;
 			DispCircle(pDlg->hv_WindowID1, hv_Row, hv_Column, HTuple(0.75 / pDlg->rc1));
 		}
+		//Threshold(pDlg->ho_ImageReduced1, &pDlg->ho_Region1, pDlg->thres1, 255);
+		//AreaCenter(pDlg->ho_Region1, &hv_Area, &hv_Row, &hv_Column);
+		//if (hv_Row.D() == 0 && hv_Column.D() == 0)
+		//{
+		//	pDlg->rx1 = 100;
+		//	pDlg->ry1 = 100;
+		//}
+		//else
+		//{
+		//	//AreaCenter(pDlg->ho_Region, &hv_Area, &hv_Row, &hv_Column);
+		//	pDlg->rx1 = round(hv_Column.D()*pDlg->rc1 * 1000) / 1000;
+		//	pDlg->ry1 = round(hv_Row.D()*pDlg->rc1 * 1000) / 1000;
+		//	DispCircle(pDlg->hv_WindowID1, hv_Row, hv_Column, HTuple(0.75 / pDlg->rc1));
+		//}
 		//threshold(pDlg->ho_ImageReduced1, &pDlg->ho_ImageReduced1, 128, 255);
 		//roi = HObject2Mat1(pDlg->ho_ImageReduced1);
 		//threshold(roi, roi, pDlg->thres1, 255, CV_THRESH_BINARY);
@@ -1224,6 +1286,11 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 			thread2 = 1;
 		}*/
 		pDlg->time1 = et - st;
+		if (pDlg->trigger1.GetCheck() == 1)
+		{
+			trignum1++;
+			pDlg->triggernum1 = trignum1;
+		}
 		pDlg->SendMessage(WM_UPDATEDATA, FALSE);
 		if (pDlg->trigger1.GetCheck() != 1)
 			Sleep(pDlg->delay1);
@@ -1247,11 +1314,19 @@ UINT CPHZNVisionDlg::StartCameraTest2(LPVOID pParam)
 	mb->modbus_connect();
 	while (pDlg->StartImageState2)
 	{
+		cout << "thread1:" << thread1 << endl;
+		cout << "thread2:" << thread2 << endl;
 		if (thread1 == 1 && thread2 == 1)
 		{
 			uint16_t write_registers[8] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000, int(pDlg->rx1), abs(pDlg->rx1 - int(pDlg->rx1)) * 1000, int(pDlg->ry1), abs(pDlg->ry1 - int(pDlg->ry1)) * 1000 };
 			mb->modbus_write_registers(0001, 8, write_registers);
-			thread1 = 0;thread2 = 0;
+			thread1 = 0; thread2 = 0;
+		}
+		if (thread1 == 1 && thread2 == 0)
+		{
+			uint16_t write_registers[4] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000 };
+			mb->modbus_write_registers(0001, 4, write_registers);
+			thread1 = 0;
 		}
 	}
 	return 0;
