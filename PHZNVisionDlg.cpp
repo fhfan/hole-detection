@@ -88,11 +88,11 @@ void CPHZNVisionDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT10, rx);
 	DDX_Text(pDX, IDC_EDIT11, ry);
 	DDX_Control(pDX, IDC_CHECK3, trigger);
-	DDX_Control(pDX, IDC_CHECK4, preview);
+	//DDX_Control(pDX, IDC_CHECK4, preview);
 	DDX_Text(pDX, IDC_EDIT1, time1);
 	DDX_Text(pDX, IDC_EDIT6, exp1);
 	DDX_Control(pDX, IDC_CHECK1, trigger1);
-	DDX_Control(pDX, IDC_CHECK2, preview1);
+	//DDX_Control(pDX, IDC_CHECK2, preview1);
 	DDX_Text(pDX, IDC_EDIT9, rx1);
 	DDX_Text(pDX, IDC_EDIT12, ry1);
 	DDX_Text(pDX, IDC_EDIT14, rc);
@@ -118,6 +118,8 @@ BEGIN_MESSAGE_MAP(CPHZNVisionDlg, CDialogEx)
 	ON_MESSAGE(WM_UPDATEDATA1, OnUpdateData1)
 	ON_BN_CLICKED(IDC_BUTTON4, &CPHZNVisionDlg::OnBnClickedButton4)
 	ON_WM_SIZE()
+	ON_BN_CLICKED(IDC_BUTTON5, &CPHZNVisionDlg::OnBnClickedButton5)
+	ON_BN_CLICKED(IDC_BUTTON6, &CPHZNVisionDlg::OnBnClickedButton6)
 END_MESSAGE_MAP()
 
 
@@ -653,8 +655,9 @@ double DistancePP(HalconCpp::HTuple hv_CameraParameters, HalconCpp::HTuple hv_Ca
 bool flag = false, flag1 = false, flag2 = false;
 bool judg1 = true, judg2 = true;
 bool judg11 = true, judg21 = true;
-int thread1, thread2;
+bool thread1, thread2;
 int trignum = 0, trignum1 = 0;
+int calcnum = 0;
 HTuple hv_Row11, hv_Column11, hv_Phi11, hv_Length11, hv_Length211, hv_Usedthreshold, hv_Usedthreshold1;
 HTuple hv_Row12, hv_Column12, hv_Phi12, hv_Length12, hv_Length212;
 HTuple hv_Row21, hv_Column21, hv_Phi21, hv_Length21, hv_Length221;
@@ -665,10 +668,19 @@ HTuple hv_Row21t, hv_Column21t, hv_Phi21t, hv_Length21t, hv_Length221t;
 HTuple hv_Row22t, hv_Column22t, hv_Phi22t, hv_Length22t, hv_Length222t;
 HTuple hv_AcqHandle, hv_AcqHandle1;
 HTuple m_ImageWidth, m_ImageWidth1, m_ImageHeight, m_ImageHeight1;
+uint16_t write_registers1[10];
+//uint16_t write_registers2[10];
+
 
 void CPHZNVisionDlg::OnBnClickedButton1()
 {
 	// TODO:  在此添加控件通知处理程序代码
+	GetDlgItem(IDC_CHECK3)->EnableWindow(FALSE);
+	GetDlgItem(IDC_CHECK5)->EnableWindow(TRUE);
+	GetDlgItem(IDC_CHECK1)->EnableWindow(FALSE);
+	GetDlgItem(IDC_CHECK6)->EnableWindow(TRUE);
+	GetDlgItem(IDC_BUTTON5)->EnableWindow(FALSE);
+	GetDlgItem(IDC_BUTTON6)->EnableWindow(FALSE);
 	if (flag == false)
 	{
 		AfxBeginThread(StartCameraTest, this, THREAD_PRIORITY_NORMAL, 0, 0, NULL);
@@ -679,11 +691,11 @@ void CPHZNVisionDlg::OnBnClickedButton1()
 		AfxBeginThread(StartCameraTest1, this, THREAD_PRIORITY_NORMAL, 0, 0, NULL);
 		flag1 = true;
 	}
-	if (flag2 == false)
-	{
-		AfxBeginThread(StartCameraTest2, this, THREAD_PRIORITY_NORMAL, 0, 0, NULL);
-		//flag2 = true;
-	}
+	//if (flag2 == false)
+	//{
+	//	AfxBeginThread(StartCameraTest2, this, THREAD_PRIORITY_NORMAL, 0, 0, NULL);
+	//	//flag2 = true;
+	//}
 }
 
 
@@ -693,19 +705,26 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 	HTuple end_val36, step_val36, hv_Classes, hv_lightdark, hv_Width, hv_Height;
 	HTuple hv_Information, hv_Values, hv_Number, hv_I, hv_Radius, hv_StartPhi, hv_EndPhi, hv_PointOrder, hv_Area;
 	HTuple hv_Row, hv_Column, hv_MetrologyHandle1, hv_Index, hv_Parameter1, hv_Mean, hv_Deviation;
-	thread1 = 0;
+	//thread1 = 0;
 	clock_t st, et;
 	Mat roi;
 	//int s, rowmax, colmax, rowindex, colindex;
 	vector<Vec3f> pcircles;
+	modbus* mb = new modbus("192.168.0.250", 502);
+	// set slave id
+	mb->modbus_set_slave_id(1);
+	// connect with the server
+	mb->modbus_connect();
 	try
 	{
 		InfoFramegrabber("HMV3rdParty", "device", &hv_Information, &hv_Values);
 		OpenFramegrabber("HMV3rdParty", 0, 0, 0, 0, 0, 0, "progressive", -1, "default", -1, "false", "default", hv_Values[0].S(), 0, -1, &hv_AcqHandle);
+		thread1 = true;
 	}
 	catch (...)
 	{
 		//CloseFramegrabber(hv_AcqHandle);
+		thread1 = false;
 		return 0;
 	}
 	CPHZNVisionDlg *pDlg = (CPHZNVisionDlg*)pParam;
@@ -758,6 +777,8 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 		st = clock();
 		//thread1 = 0;
 		DispObj(pDlg->ho_Image, pDlg->hv_WindowID);
+		if (pDlg->repaint.GetCheck() != 1 && judg1 == true)
+			continue;
 		//Mat srcImage = HObject2Mat(pDlg->ho_Image);
 		/*if (judg1==true)
 			DrawRectangle2(pDlg->hv_WindowID, &hv_Row11, &hv_Column11, &hv_Phi11, &hv_Length11, &hv_Length211);
@@ -833,8 +854,8 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 		Intensity(pDlg->ho_Rectangle, pDlg->ho_ImageReduced, &hv_Mean, &hv_Deviation);
 		if (hv_Deviation.D()<10)
 		{
-			pDlg->rx = 100;
-			pDlg->ry = 100;
+			pDlg->rx = 1;
+			pDlg->ry = 1;
 		}
 		else
 		{
@@ -1008,14 +1029,66 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 		//cout << "ry:" << pDlg->ry << endl;
 		/*if (pDlg->preview.GetCheck() != 1)
 		{*/
-		thread1 = 1;
+		//thread1 = 1;
 		//}
 		pDlg->time = et - st;
 		if (pDlg->trigger.GetCheck() == 1)
 		{
 			trignum++;
 			pDlg->triggernum = trignum;
+			write_registers1[0] = (pDlg->rx) * 1000;
+			write_registers1[1] = (pDlg->ry) * 1000;
+			write_registers1[2] = (pDlg->triggernum) / 65536;
+			write_registers1[3] = (pDlg->triggernum) % 65536;
+			//write_registers[4] = pDlg->triggernum;
+			calcnum++;
+			if (thread1 == true && thread2 == true)
+			{
+				if (pDlg->trigger1.GetCheck() == 1 && pDlg->StartImageState1==true)
+				{
+					if (calcnum == 2)
+					{
+						mb->modbus_write_registers(1, 10, write_registers1);
+						//mb->modbus_write_registers(31, 10, write_registers2);
+						calcnum = 0;
+					}
+				}
+				else
+				{
+					//uint16_t write_registers[5] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000, pDlg->triggernum };
+					//mb->modbus_write_registers(0001, 5, write_registers);
+					mb->modbus_write_registers(1, 10, write_registers1);
+					calcnum = 0;
+				}
+			}
+			else if (thread1 == true && thread2 == false)
+			{
+				//uint16_t write_registers[5] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000, pDlg->triggernum };
+				//mb->modbus_write_registers(0001, 5, write_registers);
+				mb->modbus_write_registers(1, 10, write_registers1);
+				calcnum = 0;
+			}
+			
 		}
+		//if (thread1 == 1 && thread2 == 1)
+		//{
+		//	//uint16_t write_registers[10] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000, int(pDlg->rx1), abs(pDlg->rx1 - int(pDlg->rx1)) * 1000, int(pDlg->ry1), abs(pDlg->ry1 - int(pDlg->ry1)) * 1000, pDlg->triggernum, pDlg->triggernum1 };
+		//	mb->modbus_write_registers(0001, 10, write_registers);
+		//	thread1 = 0; thread2 = 0;
+		//}
+		//else if (thread1 == 1 && thread2 == 0)
+		//{
+		//	uint16_t write_registers[5] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000, pDlg->triggernum };
+		//	mb->modbus_write_registers(0001, 5, write_registers);
+		//	thread1 = 0;
+		//}
+		//else if (thread1 == 0 && thread2 == 1)
+		//{
+		//	uint16_t write_registers[5] = { int(pDlg->rx1), abs(pDlg->rx1 - int(pDlg->rx1)) * 1000, int(pDlg->ry1), abs(pDlg->ry1 - int(pDlg->ry1)) * 1000, pDlg->triggernum1 };
+		//	mb->modbus_write_registers(0001, 5, write_registers);
+		//	thread2 = 0;
+		//}
+		//thread1 = 1;
 		pDlg->SendMessage(WM_UPDATEDATA, FALSE);
 		if (pDlg->trigger.GetCheck() != 1)
 			Sleep(pDlg->delay);
@@ -1031,20 +1104,27 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 	HTuple end_val36, step_val36, hv_Classes, hv_lightdark, hv_Width, hv_Height;
 	HTuple hv_Information, hv_Values, hv_Number, hv_I, hv_Radius, hv_StartPhi, hv_EndPhi, hv_PointOrder, hv_Area, hv_Row, hv_Column;
 	HTuple hv_Mean, hv_Deviation;
-	thread2 = 0;
+	//thread2 = 0;
 	clock_t st, et;
 	Mat roi;
 	//int s, rowmax, colmax, rowindex, colindex;
 	vector<Vec3f> pcircles;
 	//OpenFramegrabber("HMV3rdParty", 0, 0, 0, 0, 0, 0, "progressive", -1, "default", -1, "false", "default", "DahuaTechnology:5M03DF0PAK00003", 0, -1, &hv_AcqHandle1);
+	modbus* mb = new modbus("192.168.0.250", 502);
+	// set slave id
+	mb->modbus_set_slave_id(1);
+	// connect with the server
+	mb->modbus_connect();
 	try
 	{
 		InfoFramegrabber("HMV3rdParty", "device", &hv_Information, &hv_Values);
 		OpenFramegrabber("HMV3rdParty", 0, 0, 0, 0, 0, 0, "progressive", -1, "default", -1, "false", "default", hv_Values[1].S(), 0, -1, &hv_AcqHandle1);
+		thread2 = true;
 	}
 	catch (...)
 	{
 		//CloseFramegrabber(hv_AcqHandle1);
+		thread2 = false;
 		return 0;
 	}
 	CPHZNVisionDlg *pDlg = (CPHZNVisionDlg*)pParam;
@@ -1097,6 +1177,8 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		st = clock();
 		//thread2 = 0;
 		DispObj(pDlg->ho_Image1, pDlg->hv_WindowID1);
+		if (pDlg->repaint1.GetCheck() != 1 && judg2 == true)
+			continue;
 		//Mat srcImage = HObject2Mat(pDlg->ho_Image);
 		/*if (judg2 == true)
 			DrawRectangle2(pDlg->hv_WindowID1, &hv_Row21, &hv_Column21, &hv_Phi21, &hv_Length21, &hv_Length221);
@@ -1124,8 +1206,8 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		Intensity(pDlg->ho_Rectangle1, pDlg->ho_ImageReduced1, &hv_Mean, &hv_Deviation);
 		if (hv_Deviation.D()<10)
 		{
-			pDlg->rx1 = 100;
-			pDlg->ry1 = 100;
+			pDlg->rx1 = 1;
+			pDlg->ry1 = 1;
 		}
 		else
 		{
@@ -1269,7 +1351,7 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		//cout << "ry:" << pDlg->ry << endl;
 		/*if (pDlg->preview1.GetCheck() != 1)
 		{*/
-		thread2 = 1;
+		//thread2 = 1;
 		//}
 		/*if (pDlg->preview1.GetCheck() != 1)
 		{
@@ -1290,7 +1372,51 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		{
 			trignum1++;
 			pDlg->triggernum1 = trignum1;
+			write_registers1[4] = (pDlg->rx1) * 1000;
+			write_registers1[5] = (pDlg->ry1) * 1000;
+			write_registers1[6] = (pDlg->triggernum1) / 65536;
+			write_registers1[7] = (pDlg->triggernum1) % 65536;
+			//write_registers[9] = pDlg->triggernum1;
+			calcnum++;
+			if (thread1 == true && thread2 == true)
+			{
+				if (pDlg->trigger.GetCheck() == 1 && pDlg->StartImageState==true)
+				{
+					if (calcnum == 2)
+					{
+						mb->modbus_write_registers(1, 10, write_registers1);
+						//mb->modbus_write_registers(31, 10, write_registers2);
+						calcnum = 0;
+					}
+				}
+				else
+				{
+					//uint16_t write_registers[5] = { int(pDlg->rx1), abs(pDlg->rx1 - int(pDlg->rx1)) * 1000, int(pDlg->ry1), abs(pDlg->ry1 - int(pDlg->ry1)) * 1000, pDlg->triggernum1 };
+					//mb->modbus_write_registers(0001, 5, write_registers);
+					mb->modbus_write_registers(1, 10, write_registers1);
+					calcnum = 0;
+				}
+			}
 		}
+		//if (thread1 == 1 && thread2 == 1)
+		//{
+		//	//uint16_t write_registers[10] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000, int(pDlg->rx1), abs(pDlg->rx1 - int(pDlg->rx1)) * 1000, int(pDlg->ry1), abs(pDlg->ry1 - int(pDlg->ry1)) * 1000, pDlg->triggernum, pDlg->triggernum1 };
+		//	mb->modbus_write_registers(0001, 10, write_registers);
+		//	thread1 = 0; thread2 = 0;
+		//}
+		//else if (thread1 == 1 && thread2 == 0)
+		//{
+		//	uint16_t write_registers[5] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000, pDlg->triggernum };
+		//	mb->modbus_write_registers(0001, 5, write_registers);
+		//	thread1 = 0;
+		//}
+		//else if (thread1 == 0 && thread2 == 1)
+		//{
+		//	uint16_t write_registers[5] = { int(pDlg->rx1), abs(pDlg->rx1 - int(pDlg->rx1)) * 1000, int(pDlg->ry1), abs(pDlg->ry1 - int(pDlg->ry1)) * 1000, pDlg->triggernum1 };
+		//	mb->modbus_write_registers(0001, 5, write_registers);
+		//	thread2 = 0;
+		//}
+		//thread2 = 1;
 		pDlg->SendMessage(WM_UPDATEDATA, FALSE);
 		if (pDlg->trigger1.GetCheck() != 1)
 			Sleep(pDlg->delay1);
@@ -1299,38 +1425,44 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 	return 0;
 }
 
-UINT CPHZNVisionDlg::StartCameraTest2(LPVOID pParam)
-{
-	CPHZNVisionDlg *pDlg = (CPHZNVisionDlg*)pParam;
-	if (pDlg->preview.GetCheck() == 1 || pDlg->preview1.GetCheck() == 1)
-		pDlg->StartImageState2 = false;
-	else
-		pDlg->StartImageState2 = true;
-	pDlg->SendMessage(WM_UPDATEDATA2, TRUE);
-	modbus* mb = new modbus("192.168.0.250", 502);
-	// set slave id
-	mb->modbus_set_slave_id(1);
-	// connect with the server
-	mb->modbus_connect();
-	while (pDlg->StartImageState2)
-	{
-		cout << "thread1:" << thread1 << endl;
-		cout << "thread2:" << thread2 << endl;
-		if (thread1 == 1 && thread2 == 1)
-		{
-			uint16_t write_registers[8] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000, int(pDlg->rx1), abs(pDlg->rx1 - int(pDlg->rx1)) * 1000, int(pDlg->ry1), abs(pDlg->ry1 - int(pDlg->ry1)) * 1000 };
-			mb->modbus_write_registers(0001, 8, write_registers);
-			thread1 = 0; thread2 = 0;
-		}
-		if (thread1 == 1 && thread2 == 0)
-		{
-			uint16_t write_registers[4] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000 };
-			mb->modbus_write_registers(0001, 4, write_registers);
-			thread1 = 0;
-		}
-	}
-	return 0;
-}
+//UINT CPHZNVisionDlg::StartCameraTest2(LPVOID pParam)
+//{
+//	CPHZNVisionDlg *pDlg = (CPHZNVisionDlg*)pParam;
+//	if (pDlg->trigger.GetCheck() == 1 || pDlg->trigger1.GetCheck() == 1)
+//		pDlg->StartImageState2 = true;
+//	else
+//		pDlg->StartImageState2 = false;
+//	pDlg->SendMessage(WM_UPDATEDATA2, TRUE);
+//	modbus* mb = new modbus("192.168.0.250", 502);
+//	// set slave id
+//	mb->modbus_set_slave_id(1);
+//	// connect with the server
+//	mb->modbus_connect();
+//	while (pDlg->StartImageState2)
+//	{
+//		cout << "thread1:" << thread1 << endl;
+//		cout << "thread2:" << thread2 << endl;
+//		if (thread1 == 1 && thread2 == 1)
+//		{
+//			uint16_t write_registers[10] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000, int(pDlg->rx1), abs(pDlg->rx1 - int(pDlg->rx1)) * 1000, int(pDlg->ry1), abs(pDlg->ry1 - int(pDlg->ry1)) * 1000, pDlg->triggernum, pDlg->triggernum1 };
+//			mb->modbus_write_registers(0001, 10, write_registers);
+//			thread1 = 0; thread2 = 0;
+//		}
+//		else if (thread1 == 1 && thread2 == 0)
+//		{
+//			uint16_t write_registers[5] = { int(pDlg->rx), abs(pDlg->rx - int(pDlg->rx)) * 1000, int(pDlg->ry), abs(pDlg->ry - int(pDlg->ry)) * 1000, pDlg->triggernum };
+//			mb->modbus_write_registers(0001, 5, write_registers);
+//			thread1 = 0;
+//		}
+//		else if (thread1 == 0 && thread2 == 1)
+//		{
+//			uint16_t write_registers[5] = { int(pDlg->rx1), abs(pDlg->rx1 - int(pDlg->rx1)) * 1000, int(pDlg->ry1), abs(pDlg->ry1 - int(pDlg->ry1)) * 1000, pDlg->triggernum1 };
+//			mb->modbus_write_registers(0001, 5, write_registers);
+//			thread2 = 0;
+//		}
+//	}
+//	return 0;
+//}
 
 
 LRESULT CPHZNVisionDlg::OnUpdateData(WPARAM wParam, LPARAM lParam)
@@ -1345,23 +1477,27 @@ LRESULT CPHZNVisionDlg::OnUpdateData1(WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-LRESULT CPHZNVisionDlg::OnUpdateData2(WPARAM wParam, LPARAM lParam)
-{
-	UpdateData(wParam);
-	return 0;
-}
+//LRESULT CPHZNVisionDlg::OnUpdateData2(WPARAM wParam, LPARAM lParam)
+//{
+//	UpdateData(wParam);
+//	return 0;
+//}
 
 void CPHZNVisionDlg::OnBnClickedButton2()
 {
 	// TODO:  在此添加控件通知处理程序代码
 	StartImageState = flag = false;
+	calcnum = 0;
+	GetDlgItem(IDC_CHECK3)->EnableWindow(TRUE);
+	GetDlgItem(IDC_CHECK5)->EnableWindow(TRUE);
+	GetDlgItem(IDC_BUTTON5)->EnableWindow(TRUE);
 }
 
 
 void CPHZNVisionDlg::OnBnClickedButton3()
 {
 	// TODO:  在此添加控件通知处理程序代码
-	StartImageState = StartImageState1 = StartImageState2 = false;
+	StartImageState = StartImageState1 = /*StartImageState2 =*/ false;
 	//AfxGetMainWnd()->SendMessage(WM_CLOSE);
 	HANDLE Process = GetCurrentProcess();
 	TerminateProcess(Process, 0);
@@ -1374,6 +1510,10 @@ void CPHZNVisionDlg::OnBnClickedButton4()
 {
 	// TODO:  在此添加控件通知处理程序代码
 	StartImageState1 = flag1 = false;
+	calcnum = 0;
+	GetDlgItem(IDC_CHECK1)->EnableWindow(TRUE);
+	GetDlgItem(IDC_CHECK6)->EnableWindow(TRUE);
+	GetDlgItem(IDC_BUTTON6)->EnableWindow(TRUE);
 }
 
 
@@ -1424,3 +1564,19 @@ void CPHZNVisionDlg::OnBnClickedButton4()
 //}
 
 
+
+
+void CPHZNVisionDlg::OnBnClickedButton5()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	trignum = triggernum = 0;
+	UpdateData(FALSE);
+}
+
+
+void CPHZNVisionDlg::OnBnClickedButton6()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	trignum1 = triggernum1 = 0;
+	UpdateData(FALSE);
+}
