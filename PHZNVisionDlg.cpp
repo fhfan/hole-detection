@@ -710,11 +710,11 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 	Mat roi;
 	//int s, rowmax, colmax, rowindex, colindex;
 	vector<Vec3f> pcircles;
-	modbus* mb = new modbus("192.168.0.250", 502);
-	// set slave id
-	mb->modbus_set_slave_id(1);
-	// connect with the server
-	mb->modbus_connect();
+	//modbus* mb = new modbus("192.168.0.250", 502);
+	//// set slave id
+	//mb->modbus_set_slave_id(1);
+	//// connect with the server
+	//mb->modbus_connect();
 	try
 	{
 		InfoFramegrabber("HMV3rdParty", "device", &hv_Information, &hv_Values);
@@ -733,7 +733,7 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 	{
 		SetFramegrabberParam(hv_AcqHandle, "TriggerSelector", "FrameStart");
 		SetFramegrabberParam(hv_AcqHandle, "TriggerMode", "On");
-		SetFramegrabberParam(hv_AcqHandle, "TriggerSource", "Line1");
+		SetFramegrabberParam(hv_AcqHandle, "TriggerSource", "Line2");
 		SetFramegrabberParam(hv_AcqHandle, "grab_timeout", 1000);
 	}
 	else
@@ -854,8 +854,8 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 		Intensity(pDlg->ho_Rectangle, pDlg->ho_ImageReduced, &hv_Mean, &hv_Deviation);
 		if (hv_Deviation.D()<10)
 		{
-			pDlg->rx = 1;
-			pDlg->ry = 1;
+			pDlg->rx = 65.535;
+			pDlg->ry = 65.535;
 		}
 		else
 		{
@@ -1034,12 +1034,17 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 		pDlg->time = et - st;
 		if (pDlg->trigger.GetCheck() == 1)
 		{
+			modbus* mb = new modbus("192.168.0.250", 502);
+			// set slave id
+			mb->modbus_set_slave_id(1);
+			// connect with the server
+			mb->modbus_connect();
 			trignum++;
 			pDlg->triggernum = trignum;
 			write_registers1[0] = (pDlg->rx) * 1000;
 			write_registers1[1] = (pDlg->ry) * 1000;
-			write_registers1[2] = (pDlg->triggernum) / 65536;
-			write_registers1[3] = (pDlg->triggernum) % 65536;
+			write_registers1[2] = (pDlg->triggernum) % 65536;
+			write_registers1[3] = (pDlg->triggernum) / 65536;
 			//write_registers[4] = pDlg->triggernum;
 			calcnum++;
 			if (thread1 == true && thread2 == true)
@@ -1068,7 +1073,9 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 				mb->modbus_write_registers(1, 10, write_registers1);
 				calcnum = 0;
 			}
-			
+			mb->modbus_close();
+			delete mb;
+			mb = NULL;
 		}
 		//if (thread1 == 1 && thread2 == 1)
 		//{
@@ -1110,11 +1117,11 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 	//int s, rowmax, colmax, rowindex, colindex;
 	vector<Vec3f> pcircles;
 	//OpenFramegrabber("HMV3rdParty", 0, 0, 0, 0, 0, 0, "progressive", -1, "default", -1, "false", "default", "DahuaTechnology:5M03DF0PAK00003", 0, -1, &hv_AcqHandle1);
-	modbus* mb = new modbus("192.168.0.250", 502);
-	// set slave id
-	mb->modbus_set_slave_id(1);
-	// connect with the server
-	mb->modbus_connect();
+	//modbus* mb = new modbus("192.168.0.250", 502);
+	//// set slave id
+	//mb->modbus_set_slave_id(1);
+	//// connect with the server
+	//mb->modbus_connect();
 	try
 	{
 		InfoFramegrabber("HMV3rdParty", "device", &hv_Information, &hv_Values);
@@ -1133,7 +1140,7 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 	{
 		SetFramegrabberParam(hv_AcqHandle1, "TriggerSelector", "FrameStart");
 		SetFramegrabberParam(hv_AcqHandle1, "TriggerMode", "On");
-		SetFramegrabberParam(hv_AcqHandle1, "TriggerSource", "Line1");
+		SetFramegrabberParam(hv_AcqHandle1, "TriggerSource", "Line2");
 		SetFramegrabberParam(hv_AcqHandle1, "grab_timeout", 1000);
 	}
 	else
@@ -1206,8 +1213,8 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		Intensity(pDlg->ho_Rectangle1, pDlg->ho_ImageReduced1, &hv_Mean, &hv_Deviation);
 		if (hv_Deviation.D()<10)
 		{
-			pDlg->rx1 = 1;
-			pDlg->ry1 = 1;
+			pDlg->rx1 = 65.535;
+			pDlg->ry1 = 65.535;
 		}
 		else
 		{
@@ -1370,12 +1377,17 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		pDlg->time1 = et - st;
 		if (pDlg->trigger1.GetCheck() == 1)
 		{
+			modbus* mb = new modbus("192.168.0.250", 502);
+			// set slave id
+			mb->modbus_set_slave_id(1);
+			// connect with the server
+			mb->modbus_connect();
 			trignum1++;
 			pDlg->triggernum1 = trignum1;
 			write_registers1[4] = (pDlg->rx1) * 1000;
 			write_registers1[5] = (pDlg->ry1) * 1000;
-			write_registers1[6] = (pDlg->triggernum1) / 65536;
-			write_registers1[7] = (pDlg->triggernum1) % 65536;
+			write_registers1[6] = (pDlg->triggernum1) % 65536;
+			write_registers1[7] = (pDlg->triggernum1) / 65536;
 			//write_registers[9] = pDlg->triggernum1;
 			calcnum++;
 			if (thread1 == true && thread2 == true)
@@ -1397,6 +1409,9 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 					calcnum = 0;
 				}
 			}
+			mb->modbus_close();
+			delete mb;
+			mb = NULL;
 		}
 		//if (thread1 == 1 && thread2 == 1)
 		//{
