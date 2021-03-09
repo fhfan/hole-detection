@@ -15,6 +15,8 @@
 #include <math.h>
 #include <io.h>
 #include <fcntl.h>
+#include "ADO.h"
+#include "Detectresult.h"
 
 
 #ifdef _DEBUG
@@ -120,6 +122,7 @@ BEGIN_MESSAGE_MAP(CPHZNVisionDlg, CDialogEx)
 	ON_WM_SIZE()
 	ON_BN_CLICKED(IDC_BUTTON5, &CPHZNVisionDlg::OnBnClickedButton5)
 	ON_BN_CLICKED(IDC_BUTTON6, &CPHZNVisionDlg::OnBnClickedButton6)
+	ON_BN_CLICKED(IDC_BUTTON7, &CPHZNVisionDlg::OnBnClickedButton7)
 END_MESSAGE_MAP()
 
 
@@ -160,6 +163,23 @@ BOOL CPHZNVisionDlg::OnInitDialog()
 	//CRect rect;
 	//GetClientRect(&rect);     //取客户区大小  
 	//InitConsoleWindow();
+	//::CoInitialize(NULL);
+	//try{
+
+	//	/*CoInitialize(NULL);
+	//	m_pConnection = _ConnectionPtr(__uuidof(Connection));
+	//	m_pConnection->ConnectionString = "Provider=Microsoft.ACE.OLEDB.12.0; Data Source=test.accdb;";
+	//	m_pConnection->Open("", "", "", adConnectUnspecified);*/
+	//	m_Ado.m_pConnection.CreateInstance("ADODB.Connection");  //创建连接对象实例		
+	//	_bstr_t strConnect = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=statistics.accdb;";//连接字符串		
+	//	m_Ado.m_pConnection->Open(strConnect, "", "", adModeUnknown); //打开数据库
+	//}
+	//catch (_com_error e){
+
+	//	//AfxMessageBox(_T("数据库连接失败！"));
+	//	AfxMessageBox(e.Description());
+	//	return FALSE;
+	//}
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -226,7 +246,7 @@ void CPHZNVisionDlg::InitConsoleWindow()
 void CPHZNVisionDlg::CreateImageWindow()
 {
 	HTuple HWindowID, HWindowID1;
-	CRect Rect, Rect1;
+	//CRect Rect, Rect1;
 	CWnd* pWnd = GetDlgItem(IDC_PIC);
 	CWnd* pWnd1 = GetDlgItem(IDC_PIC1);
 	HWindowID = (Hlong)pWnd->m_hWnd;//获取父窗口句柄
@@ -658,6 +678,9 @@ bool judg11 = true, judg21 = true;
 bool thread1, thread2;
 int trignum = 0, trignum1 = 0;
 int calcnum = 0;
+int sn = 0;
+//modbus* mb;
+//modbus* mb1;
 HTuple hv_Row11, hv_Column11, hv_Phi11, hv_Length11, hv_Length211, hv_Usedthreshold, hv_Usedthreshold1;
 HTuple hv_Row12, hv_Column12, hv_Phi12, hv_Length12, hv_Length212;
 HTuple hv_Row21, hv_Column21, hv_Phi21, hv_Length21, hv_Length221;
@@ -705,12 +728,14 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 	HTuple end_val36, step_val36, hv_Classes, hv_lightdark, hv_Width, hv_Height;
 	HTuple hv_Information, hv_Values, hv_Number, hv_I, hv_Radius, hv_StartPhi, hv_EndPhi, hv_PointOrder, hv_Area;
 	HTuple hv_Row, hv_Column, hv_MetrologyHandle1, hv_Index, hv_Parameter1, hv_Mean, hv_Deviation;
+	HTuple m_dDispImagePartRow0, m_dDispImagePartCol0, m_dDispImagePartRow1, m_dDispImagePartCol1;
 	//thread1 = 0;
 	clock_t st, et;
 	Mat roi;
 	//int s, rowmax, colmax, rowindex, colindex;
 	vector<Vec3f> pcircles;
-	//modbus* mb = new modbus("192.168.0.250", 502);
+	CPHZNVisionDlg *pDlg = (CPHZNVisionDlg*)pParam;
+	//modbus *mb = new modbus("192.168.0.250", 502);
 	//// set slave id
 	//mb->modbus_set_slave_id(1);
 	//// connect with the server
@@ -727,13 +752,12 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 		thread1 = false;
 		return 0;
 	}
-	CPHZNVisionDlg *pDlg = (CPHZNVisionDlg*)pParam;
 	pDlg->SendMessage(WM_UPDATEDATA, TRUE);
 	if (pDlg->trigger.GetCheck() == 1)
 	{
 		SetFramegrabberParam(hv_AcqHandle, "TriggerSelector", "FrameStart");
 		SetFramegrabberParam(hv_AcqHandle, "TriggerMode", "On");
-		SetFramegrabberParam(hv_AcqHandle, "TriggerSource", "Line2");
+		SetFramegrabberParam(hv_AcqHandle, "TriggerSource", "Line1");
 		SetFramegrabberParam(hv_AcqHandle, "grab_timeout", 1000);
 	}
 	else
@@ -756,7 +780,25 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 	}
 	if (pDlg->repaint.GetCheck() == 1)
 		judg1 = true;
-	SetPart(pDlg->hv_WindowID, 0, 0, m_ImageHeight - 1, m_ImageWidth - 1);
+	double fImage = (double)m_ImageWidth / m_ImageHeight;
+	double fWindow = (double)pDlg->Rect.Width() / pDlg->Rect.Height();
+	double w = fWindow * m_ImageHeight;
+	double h = m_ImageWidth / fWindow;
+	if (fWindow > fImage)
+	{
+		m_dDispImagePartRow0 = HTuple(0);
+		m_dDispImagePartCol0 = HTuple(-(w - m_ImageWidth) / 2);
+		m_dDispImagePartRow1 = HTuple(m_ImageHeight - 1);
+		m_dDispImagePartCol1 = HTuple(m_ImageWidth + (w - m_ImageWidth) / 2);
+	}
+	else
+	{
+		m_dDispImagePartRow0 = HTuple(-(h - m_ImageHeight) / 2);
+		m_dDispImagePartCol0 = HTuple(0);
+		m_dDispImagePartRow1 = HTuple(m_ImageHeight + (h - m_ImageHeight) / 2);
+		m_dDispImagePartCol1 = HTuple(m_ImageWidth - 1);
+	}
+	SetPart(pDlg->hv_WindowID, m_dDispImagePartRow0, m_dDispImagePartCol0, m_dDispImagePartRow1, m_dDispImagePartCol1);
 	pDlg->StartImageState = true;
 	SetColor(pDlg->hv_WindowID, "red");
 	SetDraw(pDlg->hv_WindowID, "margin");
@@ -1034,13 +1076,14 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 		pDlg->time = et - st;
 		if (pDlg->trigger.GetCheck() == 1)
 		{
+			trignum++;
+			pDlg->triggernum = trignum;
+			pDlg->SendMessage(WM_UPDATEDATA, FALSE);
 			modbus* mb = new modbus("192.168.0.250", 502);
 			// set slave id
 			mb->modbus_set_slave_id(1);
 			// connect with the server
 			mb->modbus_connect();
-			trignum++;
-			pDlg->triggernum = trignum;
 			write_registers1[0] = (pDlg->rx) * 1000;
 			write_registers1[1] = (pDlg->ry) * 1000;
 			write_registers1[2] = (pDlg->triggernum) % 65536;
@@ -1056,6 +1099,7 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 						mb->modbus_write_registers(1, 10, write_registers1);
 						//mb->modbus_write_registers(31, 10, write_registers2);
 						calcnum = 0;
+						pDlg->SaveStatisticCfg();
 					}
 				}
 				else
@@ -1064,6 +1108,7 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 					//mb->modbus_write_registers(0001, 5, write_registers);
 					mb->modbus_write_registers(1, 10, write_registers1);
 					calcnum = 0;
+					pDlg->SaveStatisticCfg();
 				}
 			}
 			else if (thread1 == true && thread2 == false)
@@ -1072,6 +1117,7 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 				//mb->modbus_write_registers(0001, 5, write_registers);
 				mb->modbus_write_registers(1, 10, write_registers1);
 				calcnum = 0;
+				pDlg->SaveStatisticCfg();
 			}
 			mb->modbus_close();
 			delete mb;
@@ -1096,9 +1142,14 @@ UINT CPHZNVisionDlg::StartCameraTest(LPVOID pParam)
 		//	thread2 = 0;
 		//}
 		//thread1 = 1;
-		pDlg->SendMessage(WM_UPDATEDATA, FALSE);
-		if (pDlg->trigger.GetCheck() != 1)
+		//pDlg->SendMessage(WM_UPDATEDATA, FALSE);
+		//if (pDlg->trigger.GetCheck() != 1)
+		else
+		{
+			pDlg->SendMessage(WM_UPDATEDATA, FALSE);
 			Sleep(pDlg->delay);
+		}
+		//pDlg->SendMessage(WM_UPDATEDATA, FALSE);
 	}
 	CloseFramegrabber(hv_AcqHandle); // 结束线程
 	return 0;
@@ -1111,17 +1162,19 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 	HTuple end_val36, step_val36, hv_Classes, hv_lightdark, hv_Width, hv_Height;
 	HTuple hv_Information, hv_Values, hv_Number, hv_I, hv_Radius, hv_StartPhi, hv_EndPhi, hv_PointOrder, hv_Area, hv_Row, hv_Column;
 	HTuple hv_Mean, hv_Deviation;
+	HTuple m_dDispImagePartRow0, m_dDispImagePartCol0, m_dDispImagePartRow1, m_dDispImagePartCol1;
 	//thread2 = 0;
 	clock_t st, et;
 	Mat roi;
 	//int s, rowmax, colmax, rowindex, colindex;
 	vector<Vec3f> pcircles;
 	//OpenFramegrabber("HMV3rdParty", 0, 0, 0, 0, 0, 0, "progressive", -1, "default", -1, "false", "default", "DahuaTechnology:5M03DF0PAK00003", 0, -1, &hv_AcqHandle1);
-	//modbus* mb = new modbus("192.168.0.250", 502);
+	CPHZNVisionDlg *pDlg = (CPHZNVisionDlg*)pParam;
+	//modbus *mb1 = new modbus("192.168.0.250", 502);
 	//// set slave id
-	//mb->modbus_set_slave_id(1);
+	//mb1->modbus_set_slave_id(1);
 	//// connect with the server
-	//mb->modbus_connect();
+	//mb1->modbus_connect();
 	try
 	{
 		InfoFramegrabber("HMV3rdParty", "device", &hv_Information, &hv_Values);
@@ -1134,13 +1187,12 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		thread2 = false;
 		return 0;
 	}
-	CPHZNVisionDlg *pDlg = (CPHZNVisionDlg*)pParam;
 	pDlg->SendMessage(WM_UPDATEDATA1, TRUE);
 	if (pDlg->trigger1.GetCheck() == 1)
 	{
 		SetFramegrabberParam(hv_AcqHandle1, "TriggerSelector", "FrameStart");
 		SetFramegrabberParam(hv_AcqHandle1, "TriggerMode", "On");
-		SetFramegrabberParam(hv_AcqHandle1, "TriggerSource", "Line2");
+		SetFramegrabberParam(hv_AcqHandle1, "TriggerSource", "Line1");
 		SetFramegrabberParam(hv_AcqHandle1, "grab_timeout", 1000);
 	}
 	else
@@ -1163,7 +1215,25 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 	if (pDlg->repaint1.GetCheck() == 1)
 		judg2 = true;
 	//Mat m_Image = HObject2Mat(pDlg->ho_Image);
-	SetPart(pDlg->hv_WindowID1, 0, 0, m_ImageHeight1 - 1, m_ImageWidth1 - 1);
+	double fImage = (double)m_ImageWidth1 / m_ImageHeight1;
+	double fWindow = (double)pDlg->Rect1.Width() / pDlg->Rect1.Height();
+	double w = fWindow * m_ImageHeight1;
+	double h = m_ImageWidth1 / fWindow;
+	if (fWindow > fImage)
+	{
+		m_dDispImagePartRow0 = HTuple(0);
+		m_dDispImagePartCol0 = HTuple(-(w - m_ImageWidth1) / 2);
+		m_dDispImagePartRow1 = HTuple(m_ImageHeight1 - 1);
+		m_dDispImagePartCol1 = HTuple(m_ImageWidth1 + (w - m_ImageWidth1) / 2);
+	}
+	else
+	{
+		m_dDispImagePartRow0 = HTuple(-(h - m_ImageHeight1) / 2);
+		m_dDispImagePartCol0 = HTuple(0);
+		m_dDispImagePartRow1 = HTuple(m_ImageHeight1 + (h - m_ImageHeight1) / 2);
+		m_dDispImagePartCol1 = HTuple(m_ImageWidth1 - 1);
+	}
+	SetPart(pDlg->hv_WindowID1, m_dDispImagePartRow0, m_dDispImagePartCol0, m_dDispImagePartRow1, m_dDispImagePartCol1);
 	pDlg->StartImageState1 = true;
 	SetColor(pDlg->hv_WindowID1, "red");
 	SetDraw(pDlg->hv_WindowID1, "margin");
@@ -1377,13 +1447,14 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		pDlg->time1 = et - st;
 		if (pDlg->trigger1.GetCheck() == 1)
 		{
+			trignum1++;
+			pDlg->triggernum1 = trignum1;
+			pDlg->SendMessage(WM_UPDATEDATA, FALSE);
 			modbus* mb = new modbus("192.168.0.250", 502);
 			// set slave id
 			mb->modbus_set_slave_id(1);
 			// connect with the server
 			mb->modbus_connect();
-			trignum1++;
-			pDlg->triggernum1 = trignum1;
 			write_registers1[4] = (pDlg->rx1) * 1000;
 			write_registers1[5] = (pDlg->ry1) * 1000;
 			write_registers1[6] = (pDlg->triggernum1) % 65536;
@@ -1399,6 +1470,7 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 						mb->modbus_write_registers(1, 10, write_registers1);
 						//mb->modbus_write_registers(31, 10, write_registers2);
 						calcnum = 0;
+						pDlg->SaveStatisticCfg();
 					}
 				}
 				else
@@ -1407,6 +1479,7 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 					//mb->modbus_write_registers(0001, 5, write_registers);
 					mb->modbus_write_registers(1, 10, write_registers1);
 					calcnum = 0;
+					pDlg->SaveStatisticCfg();
 				}
 			}
 			mb->modbus_close();
@@ -1432,9 +1505,14 @@ UINT CPHZNVisionDlg::StartCameraTest1(LPVOID pParam)
 		//	thread2 = 0;
 		//}
 		//thread2 = 1;
-		pDlg->SendMessage(WM_UPDATEDATA, FALSE);
-		if (pDlg->trigger1.GetCheck() != 1)
+		//pDlg->SendMessage(WM_UPDATEDATA, FALSE);
+		//if (pDlg->trigger1.GetCheck() != 1)
+		else
+		{
+			pDlg->SendMessage(WM_UPDATEDATA, FALSE);
 			Sleep(pDlg->delay1);
+		}
+		//pDlg->SendMessage(WM_UPDATEDATA, FALSE);
 	}
 	CloseFramegrabber(hv_AcqHandle1); // 结束线程
 	return 0;
@@ -1501,6 +1579,9 @@ LRESULT CPHZNVisionDlg::OnUpdateData1(WPARAM wParam, LPARAM lParam)
 void CPHZNVisionDlg::OnBnClickedButton2()
 {
 	// TODO:  在此添加控件通知处理程序代码
+	/*mb->modbus_close();
+	delete mb;
+	mb = NULL;*/
 	StartImageState = flag = false;
 	calcnum = 0;
 	GetDlgItem(IDC_CHECK3)->EnableWindow(TRUE);
@@ -1524,6 +1605,9 @@ void CPHZNVisionDlg::OnBnClickedButton3()
 void CPHZNVisionDlg::OnBnClickedButton4()
 {
 	// TODO:  在此添加控件通知处理程序代码
+	/*mb1->modbus_close();
+	delete mb1;
+	mb1 = NULL;*/
 	StartImageState1 = flag1 = false;
 	calcnum = 0;
 	GetDlgItem(IDC_CHECK1)->EnableWindow(TRUE);
@@ -1594,4 +1678,133 @@ void CPHZNVisionDlg::OnBnClickedButton6()
 	// TODO:  在此添加控件通知处理程序代码
 	trignum1 = triggernum1 = 0;
 	UpdateData(FALSE);
+}
+
+
+void CPHZNVisionDlg::OnBnClickedButton7()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	/*INT_PTR nRes;
+	nRes = odr.DoModal();
+	if (nRes == IDOK)
+		return;*/
+	ShellExecute(NULL, _T("open"), _T(".\\StatisticCfg.csv"), NULL, NULL, SW_SHOWNORMAL);
+}
+
+void CPHZNVisionDlg::addDataTOAccess()
+{
+	CString sql;
+	sql.Format(_T("select * from detectInfo"));
+	m_Ado.m_pRecordset = m_Ado.OpenRecordset(sql);
+	//清空表格
+	if (/*!m_Ado.m_pRecordset->BOF || */!m_Ado.m_pRecordset->adoEOF)
+	{
+		//m_Ado.m_pRecordset->MoveFirst();
+		if (sn == 0)
+		{
+			m_Ado.m_pRecordset->MoveFirst();
+			while (!m_Ado.m_pRecordset->adoEOF)
+			{
+				m_Ado.m_pRecordset->Delete(adAffectCurrent);
+				m_Ado.m_pRecordset->Update();
+				m_Ado.m_pRecordset->MoveNext();
+			}
+			sn = 1;
+		}
+		else
+		{
+			/*while (!m_Ado.m_pRecordset->adoEOF)
+			{*/
+				m_Ado.m_pRecordset->MoveNext();
+			//}
+		}
+		/*if (sn == 1)
+		{
+			m_Ado.m_pRecordset->MovePrevious();
+			m_Ado.m_pRecordset->Delete(adAffectCurrent);
+			m_Ado.m_pRecordset->Update();
+		}*/
+
+		//m_Ado.m_pRecordset->Update(); //更新数据表记录
+	}
+	try
+	{
+		//while (!m_Ado.m_pRecordset->adoEOF)
+		//{
+		//	m_Ado.m_pRecordset->MoveNext();
+		//	//m_Ado.m_pRecordset->Update();
+		//}
+		//sn = 1;
+		//CString  strTime = CTime::GetCurrentTime().Format("%Y%m%d");//获取当前时间
+		m_Ado.m_pRecordset->AddNew();
+		m_Ado.m_pRecordset->PutCollect("相机1x", (_bstr_t)write_registers1[0]);
+		m_Ado.m_pRecordset->PutCollect("相机1y", (_bstr_t)write_registers1[1]);
+		//m_Ado.m_pRecordset->PutCollect("相机1前16位触发", (_bstr_t)write_registers1[2]);
+		//m_Ado.m_pRecordset->PutCollect("相机1后16位触发", (_bstr_t)write_registers1[3]);
+		m_Ado.m_pRecordset->PutCollect("相机2x", (_bstr_t)write_registers1[4]);
+		m_Ado.m_pRecordset->PutCollect("相机2y", (_bstr_t)write_registers1[5]);
+		//m_Ado.m_pRecordset->PutCollect("相机2前16位触发", (_bstr_t)write_registers1[6]);
+		//m_Ado.m_pRecordset->PutCollect("相机2后16位触发", (_bstr_t)write_registers1[7]);
+		m_Ado.m_pRecordset->Update();
+		//AfxMessageBox(_T("添加成功！"));
+	}
+	catch (_com_error e){
+		AfxMessageBox(_T("添加失败！"));
+	}
+
+}
+
+
+void CPHZNVisionDlg::SaveStatisticCfg()
+{
+	CStdioFile file;
+	CString CameraCfgPath;
+	CString CameraNumber;
+	CameraCfgPath = pathStr + ".\\StatisticCfg.csv";
+	BOOL ret = file.Open(CameraCfgPath, CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite);
+	if (!ret)
+	{
+		MessageBoxEx(NULL, _T("打开文件失败！"), _T("报警"), NULL, MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED));
+		return;
+	}
+
+	//检测模型
+	CString str;
+	file.WriteString("检测日期,");
+	file.WriteString("相机1x,");
+	file.WriteString("相机1y,");
+	//file.WriteString("相机1前16位触发,");
+	//file.WriteString("相机1后16位触发,");
+	file.WriteString("相机2x,");
+	file.WriteString("相机2y,");
+	//file.WriteString("相机2前16位触发,");
+	//file.WriteString("相机2后16位触发,");
+	if (sn == 0)
+	{
+		file.WriteString(str);
+		str.Format("\n");
+		sn = 1;
+	}
+
+	file.SeekToEnd();//先定位到文件尾部
+	file.WriteString(str);
+	string  strTime = CTime::GetCurrentTime().Format("%Y%m%d");//获取当前时间
+	str.Format("%s,", strTime.c_str());
+	file.WriteString(str);
+	str.Format("%d,", write_registers1[0]);
+	file.WriteString(str);
+	str.Format("%d,", write_registers1[1]);
+	/*file.WriteString(str);
+	str.Format("%d,", write_registers1[2]);
+	file.WriteString(str);
+	str.Format("%d,", write_registers1[3]);*/
+	file.WriteString(str);
+	str.Format("%d,", write_registers1[4]);
+	file.WriteString(str);
+	str.Format("%d\n", write_registers1[5]);
+	/*file.WriteString(str);
+	str.Format("%d,", write_registers1[6]);
+	file.WriteString(str);
+	str.Format("%d,", write_registers1[7]);*/
+	file.WriteString(str);
 }
