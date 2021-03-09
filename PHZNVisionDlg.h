@@ -11,7 +11,7 @@
 
 #define WM_UPDATEDATA WM_USER+5
 #define WM_UPDATEDATA1 WM_USER+5
-#define WM_UPDATEDATA2 WM_USER+5
+//#define WM_UPDATEDATA2 WM_USER+5
 
 
 using namespace cv;
@@ -42,6 +42,8 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
+	CRect Rect;
+	CRect Rect1;
 	HObject ho_Image;
 	HObject ho_Rectangle;
 	HObject ho_Circle;
@@ -73,16 +75,16 @@ public:
 	HTuple hv_WindowID1;
 	bool StartImageState;
 	bool StartImageState1;
-	bool StartImageState2;
+	//bool StartImageState2;
 	void CreateImageWindow();
 	void InitConsoleWindow();
 	afx_msg void OnBnClickedButton1();
 	static UINT StartCameraTest(LPVOID pParam);
 	static UINT StartCameraTest1(LPVOID pParam);
-	static UINT StartCameraTest2(LPVOID pParam);
+	//static UINT StartCameraTest2(LPVOID pParam);
 	LRESULT OnUpdateData(WPARAM wParam, LPARAM lParam);
 	LRESULT OnUpdateData1(WPARAM wParam, LPARAM lParam);
-	LRESULT OnUpdateData2(WPARAM wParam, LPARAM lParam);
+	//LRESULT OnUpdateData2(WPARAM wParam, LPARAM lParam);
 	long time;
 	afx_msg void OnBnClickedButton2();
 	afx_msg void OnBnClickedButton3();
@@ -90,11 +92,11 @@ public:
 	double rx;
 	double ry;
 	CButton trigger;
-	CButton preview;
+	//CButton preview;
 	long time1;
 	double exp1;
 	CButton trigger1;
-	CButton preview1;
+	//CButton preview1;
 	double rx1;
 	double ry1;
 	afx_msg void OnBnClickedButton4();
@@ -113,5 +115,11 @@ public:
 	//double thres1;
 	int triggernum;
 	int triggernum1;
+	afx_msg void OnBnClickedButton5();
+	afx_msg void OnBnClickedButton6();
+	CString pathStr;
+	void addDataTOAccess();
+	void SaveStatisticCfg();
+	afx_msg void OnBnClickedButton7();
 };
 
